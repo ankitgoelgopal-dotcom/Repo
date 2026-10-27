@@ -26,6 +26,9 @@ jobs:
       - name: Test .qar toolchain (pack / verify / tamper rejection)
         run: scripts/test_qar.sh
 
+      - name: Cross-check in-OS verifier (C) against Python packer
+        run: tests/host_test.sh
+
       - name: Boot test in QEMU (headless)
         run: scripts/test_qemu.sh build/qaros.iso build/qemu-serial.log
 
@@ -35,6 +38,22 @@ jobs:
         with:
           name: qaros-iso
           path: build/qaros.iso
+          if-no-files-found: warn
+
+      - name: Upload SDK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qar-sdk
+          path: build/qar-sdk.tar.gz
+          if-no-files-found: warn
+
+      - name: Upload app store bundle (signed index + .qar packages)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qar-store
+          path: build/store/
           if-no-files-found: warn
 
       - name: Upload logs

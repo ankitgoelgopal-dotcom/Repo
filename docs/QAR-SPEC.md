@@ -32,7 +32,7 @@ Optional: `min_os`, `capabilities` (list, e.g. `net.connect`, `gfx.window`, `fs.
 Capabilities are a request only; the user/policy grants them at install (see Security).
 
 ## TOC
-Repeated entries, no padding: `u16 path_len, u8 kind, u8 flags, u32 mode, u64 offset, u64 size, u8[32] sha256, path[path_len]`.
+Repeated entries, no padding (fixed part is 56 bytes, then the path): `u16 path_len, u8 kind, u8 flags, u32 mode, u64 offset, u64 size, u8[32] sha256, path[path_len]`.
 `kind`: 1 exec, 2 lib, 3 resource, 4 data. `offset` is absolute and must lie inside the payload.
 Paths: relative, `/`-separated, no `..`, no leading `/`, no `\`, max 255 bytes. Max 4096 entries.
 

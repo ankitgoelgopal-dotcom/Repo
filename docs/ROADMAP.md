@@ -4,16 +4,16 @@ Each phase must boot and pass `scripts/test_qemu.sh` in CI before the next begin
 
 | Phase | Deliverable | Status |
 |------:|-------------|--------|
-| 1 | Multiboot2 boot, long mode, serial + VGA console, memory map, CI + QEMU boot test, `.qar` spec + tooling | **done** |
-| 2 | Physical frame allocator, 4-level paging, higher-half kernel, kernel heap | next |
-| 3 | GDT/IDT/TSS, exceptions, APIC timer, preemptive scheduler, ring 3, syscalls, ELF loader | |
-| 4 | Message-passing IPC (Binder-style), capability table, handle passing | |
-| 5 | VFS + ramdisk (initrd carries system `.qar` packages) | |
-| 6 | Drivers: PS/2 kbd/mouse, PCI enumeration, e1000 / virtio-net, framebuffer + compositor | |
-| 7 | Net service: ARP, IPv4, ICMP, UDP, DHCP, DNS, TCP, then IPv6; TLS library | |
-| 8 | SDK (`os_api.h`, libc subset, sockets, gfx), in-OS `.qar` verifier, `pkgd`, loader | |
-| 9 | Browser: URL fetch over sockets, HTML text renderer, windowing | |
-| 10 | Bluetooth HCI layer; Wi-Fi driver interface and stubs | |
+| 1 | Multiboot2 boot, long mode, serial + VGA console, CI + QEMU boot test | **done** |
+| 2 | Frame allocator, per-process address spaces (4-level paging), kernel heap | **done** (kernel still identity-mapped; higher-half move later) |
+| 3 | GDT/TSS/IDT, PIT timer, preemptive round-robin scheduler, ring 3, `int 0x80` syscalls, ELF loader | **done** (single CPU, PIC not APIC) |
+| 4 | Message-passing IPC (Binder-style), capability table | next |
+| 5 | VFS + ramdisk | |
+| 6 | Drivers: PS/2 kbd/mouse, PCI, e1000 / virtio-net, framebuffer + compositor | |
+| 7 | Net service: ARP, IPv4, UDP, DHCP, DNS, TCP, IPv6; TLS | |
+| 8 | SDK v0 + in-kernel `.qar` verifier + sample apps | **started** (SDK, libc subset, verifier done; sockets, graphics API, `pkgd`, `qpm` not yet) |
+| 9 | Browser | |
+| 10 | Bluetooth HCI; Wi-Fi interface and stubs | |
 
 Notes
 * Microkernel direction: kernel keeps scheduling, memory, IPC and capabilities; drivers,

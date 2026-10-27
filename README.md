@@ -1,13 +1,33 @@
 # QAR-OS
 
 x86_64 microkernel-oriented OS. Native apps are signed `.qar` packages (see `docs/QAR-SPEC.md`).
-Current state: **Phase 1** (boots to a 64-bit kernel and logs to serial/VGA). See `docs/ROADMAP.md`.
+Current state: boots, runs signed `.qar` apps in ring 3 with preemptive multitasking. See `docs/ROADMAP.md`.
+
+What runs at boot: the kernel verifies each `.qar` module (SHA-256 + Ed25519), loads the ELF inside, and starts it
+as an isolated process. It also rejects a tampered package and one signed by an unknown key (both are in the ISO on
+purpose), and survives a deliberately crashing app.
+
+## SDK
+CI uploads `qar-sdk` (`qar-sdk.tar.gz`). It contains headers (`os_api.h`, `stdio.h`, `string.h`, `stdlib.h`), a libc subset,
+`bin/qar-cc` (compiler wrapper), `bin/qar` (packer/signer) and examples:
+```
+tar xzf qar-sdk.tar.gz && cd qar-sdk
+bin/qar-cc examples/hello/main.c -o main           # compile for QAR-OS
+mkdir pkg && mv main pkg/ && cp examples/hello/manifest.json pkg/
+bin/qar keygen mykey && bin/qar pack pkg app.qar --key mykey.key
+```
+Note: the kernel only trusts the key generated at ISO build time (printed by CI as part of the build, stored only in the
+build job). Production use needs a fixed, offline signing key compiled into the kernel image.
+
+## App downloads
+See `docs/APP-STORE.md`. The signed store index and its builder exist; the in-OS downloader needs the network stack first.
 
 ## Build locally (Ubuntu/Debian)
 ```
 sudo apt install gcc binutils make nasm xorriso grub-pc-bin grub-common mtools qemu-system-x86 python3-cryptography
 make iso          # -> build/qaros.iso
 make test         # boots in headless QEMU and checks the serial log
+make hosttest     # cross-checks the in-OS verifier against the Python packer
 make run          # boots with a window; serial output in your terminal
 ```
 Toolchain note: Ubuntu has no `x86_64-elf-gcc` package. The build uses the host `gcc` in freestanding

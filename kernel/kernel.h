@@ -5,7 +5,7 @@
 #include <stdarg.h>
 
 #define QAR_OS_NAME    "QAR-OS"
-#define QAR_OS_VERSION "0.1.0-phase1"
+#define QAR_OS_VERSION "0.2.0"
 
 /* port I/O */
 static inline void outb(uint16_t p, uint8_t v) { __asm__ volatile("outb %0,%1" :: "a"(v), "Nd"(p)); }

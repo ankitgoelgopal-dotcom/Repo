@@ -1,0 +1,46 @@
+name: Build & Test QAR-OS
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          # gcc runs in -ffreestanding mode targeting x86_64 (see README: no x86_64-elf-gcc package exists in Ubuntu)
+          sudo apt-get install -y --no-install-recommends \
+            gcc binutils make nasm xorriso grub-pc-bin grub-common mtools \
+            qemu-system-x86 python3 python3-cryptography
+
+      - name: Build kernel and ISO
+        run: make iso
+
+      - name: Test .qar toolchain (pack / verify / tamper rejection)
+        run: scripts/test_qar.sh
+
+      - name: Boot test in QEMU (headless)
+        run: scripts/test_qemu.sh build/qaros.iso build/qemu-serial.log
+
+      - name: Upload ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qaros-iso
+          path: build/qaros.iso
+          if-no-files-found: warn
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-logs
+          path: build/qemu-serial.log
+          if-no-files-found: warn

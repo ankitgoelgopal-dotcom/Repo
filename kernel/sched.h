@@ -3,7 +3,10 @@
 #include <stdint.h>
 #include "mm.h"
 void sched_init(void);
-int  task_spawn_user(const char *name, struct aspace *as, uint64_t entry);
+#define CAP_NET 1u
+int  task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_t caps);
+uint32_t current_caps(void);
+int *current_fds(void);               /* 8 socket slots, -1 = free */
 void task_exit(int code) __attribute__((noreturn));
 void task_yield(void);
 void task_sleep_ticks(uint64_t t);

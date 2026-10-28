@@ -2,11 +2,13 @@
 #include "cpu.h"
 #include "sched.h"
 #include "mem.h"
+#include "net.h"
 
 enum { T_FREE, T_READY, T_RUNNING, T_SLEEP, T_ZOMBIE };
 struct task {
     int pid, state, code; char name[32];
     uint64_t sp, wake, entry; uint8_t *kstack; struct aspace *as;
+    uint32_t caps; int fds[8];
 };
 #define MAX_TASKS 32
 #define KSTACK 16384
@@ -16,9 +18,12 @@ static int next_pid = 1;
 
 int current_pid(void) { return cur ? cur->pid : 0; }
 struct aspace *current_aspace(void) { return cur ? cur->as : 0; }
+uint32_t current_caps(void) { return cur ? cur->caps : 0; }
+int *current_fds(void) { return cur->fds; }
 
 void sched_init(void) {            /* the boot thread becomes pid 0 (idle) */
     struct task *t = kmalloc(sizeof *t); memset(t, 0, sizeof *t);
+    for (int i = 0; i < 8; i++) t->fds[i] = -1;
     t->pid = 0; t->state = T_RUNNING; memcpy(t->name, "idle", 5);
     tasks[0] = cur = t;
 }
@@ -47,7 +52,9 @@ void task_yield(void) { cli(); schedule(); }
 void task_sleep_ticks(uint64_t t) { cli(); cur->wake = ticks + t; cur->state = T_SLEEP; schedule(); }
 
 void task_exit(int code) {
-    cli(); cur->code = code; cur->state = T_ZOMBIE;
+    cli(); cur->code = code;
+    for (int i = 0; i < 8; i++) if (cur->fds[i] >= 0) { net_close(cur->fds[i]); cur->fds[i] = -1; }   /* release sockets */
+    cur->state = T_ZOMBIE;
     kprintf("[proc] pid %d (%s) exited with code %d\n", cur->pid, cur->name, code);
     schedule();
     kpanic("zombie task was rescheduled");
@@ -59,12 +66,12 @@ static void task_main(void) {          /* first code run by every new task, on i
     for (;;) ;
 }
 
-int task_spawn_user(const char *name, struct aspace *as, uint64_t entry) {
+int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_t caps) {
     int slot = -1; for (int i = 1; i < MAX_TASKS; i++) if (!tasks[i]) { slot = i; break; }
     if (slot < 0) return -1;
     struct task *t = kmalloc(sizeof *t); uint8_t *ks = kmalloc(KSTACK);
     if (!t || !ks) return -1;
-    memset(t, 0, sizeof *t);
+    memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps;
     t->pid = next_pid++; t->state = T_READY; t->as = as; t->entry = entry; t->kstack = ks;
     for (int i = 0; i < 31 && name[i]; i++) t->name[i] = name[i];
     uint64_t *sp = (uint64_t *)(((uint64_t)ks + KSTACK) & ~0xFULL);

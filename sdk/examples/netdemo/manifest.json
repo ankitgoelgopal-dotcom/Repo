@@ -1,0 +1,1 @@
+{"id":"org.qar.netdemo","name":"Net Demo","version":"1.0.0","entry":"main","capabilities":["console","net.connect"]}

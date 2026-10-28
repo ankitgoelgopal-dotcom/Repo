@@ -5,12 +5,12 @@
 |---|---|
 | Signed `.qar` packages, in-kernel verification | **working** (boot test proves accept/reject) |
 | Signed store index (`index.json` + `index.sig`) and builder (`tools/mkstore.py`) | **working**, produced by CI as the `qar-store` artifact |
-| Network stack (NIC driver, IP, DHCP, DNS, TCP) | not built (roadmap phases 6-7) |
+| Network stack (e1000 driver, ARP, IPv4, ICMP, UDP, DHCP, DNS, TCP client) | **working** (see README, Networking) |
 | TLS (needed for HTTPS) | not built |
 | `qpm` client, `pkgd` install service, `/apps` storage | not built (needs VFS, IPC, network) |
 
-Until the network stack exists, an OS image can only run apps that are already inside the ISO
-(they are passed to the kernel as boot modules). Real downloading needs everything marked "not built".
+The network now works, so an app can fetch files over plain HTTP. Missing for real downloads: TLS (HTTPS), a
+file system to store the package, and the `qpm`/`pkgd` programs. Today apps still arrive as boot modules in the ISO.
 
 ## Flow once the pieces exist
 1. `qpm update`: GET `<store>/index.json` and `index.sig`; check the Ed25519 signature against the

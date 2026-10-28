@@ -5,6 +5,7 @@
 #include "sched.h"
 #include "elf.h"
 #include "qar.h"
+#include "net.h"
 #include "trusted_key.h"
 
 extern char __kernel_start[], __kernel_end[];
@@ -61,9 +62,10 @@ static int launch(const char *name, const uint8_t *blob, uint64_t len) {
     if (!as) { kprintf("[qar ] out of memory\n"); return -1; }
     int e = elf_load(as, info.entry_data, info.entry_size, &entry);
     if (e) { kprintf("[qar ] %s: ELF load failed (%d)\n", info.id, e); aspace_destroy(as); return -1; }
-    int pid = task_spawn_user(info.id, as, entry);
+    uint32_t caps = kstrstr(info.caps, "net.connect") ? CAP_NET : 0;
+    int pid = task_spawn_user(info.id, as, entry, caps);
     if (pid < 0) { aspace_destroy(as); return -1; }
-    kprintf("[proc] started %s as pid %d\n", info.id, pid);
+    kprintf("[proc] started %s as pid %d%s\n", info.id, pid, caps ? " (net.connect granted)" : "");
     return pid;
 }
 
@@ -88,6 +90,7 @@ void kmain(uint64_t mbi_addr, uint64_t magic) {
     sched_init();
     kprintf("[cpu ] GDT/TSS/IDT loaded, timer at %d Hz\n", TICK_HZ);
     kprintf("QAR-OS: BOOT OK\n");
+    net_init();
 
     for (int i = 0; i < nmods; i++)
         launch(mods[i].name, (const uint8_t *)(uint64_t)mods[i].start, mods[i].end - mods[i].start);

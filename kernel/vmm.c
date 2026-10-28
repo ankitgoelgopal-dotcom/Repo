@@ -8,6 +8,10 @@ static uint64_t *kernel_pdpt0;           /* kernel's identity-mapped first GiB (
 void vmm_init(void) {
     __asm__ volatile("mov %%cr3,%0" : "=r"(kernel_cr3));
     kernel_pdpt0 = (uint64_t *)(((uint64_t *)kernel_cr3)[0] & ~0xFFFULL);
+    /* PCI/MMIO window: 3-4 GiB identity-mapped with 2 MiB uncached supervisor pages (e1000 registers live here) */
+    uint64_t *pd = (uint64_t *)pmm_alloc();
+    for (int i = 0; i < 512; i++) pd[i] = (0xC0000000ULL + (uint64_t)i * 0x200000ULL) | PTE_P | PTE_W | 0x80 | 0x18;
+    kernel_pdpt0[3] = (uint64_t)pd | PTE_P | PTE_W;
 }
 static uint64_t *tbl(void) { return (uint64_t *)pmm_alloc(); }
 
@@ -17,7 +21,11 @@ struct aspace *aspace_create(void) {
     a->pml4 = tbl(); a->pdpt = tbl(); a->pd = tbl();
     if (!a->pml4 || !a->pdpt || !a->pd) return 0;
     a->pml4[0] = (uint64_t)a->pdpt | PTE_P | PTE_W | PTE_U;
-    a->pdpt[0] = kernel_pdpt0[0];                         /* shared kernel mapping, no U bit */
+    a->pdpt[0] = kernel_pdpt0[0];
+    a->pdpt[3] = kernel_pdpt0[3];                         /* shared MMIO window */                         /* shared kernel mapping, no U bit */
+    a->pdpt[2] = kernel_pdpt0[2];                         /* kernel MMIO windows (devices), if mapped */
+    a->pdpt[3] = kernel_pdpt0[3];
+    a->pdpt[3] = kernel_pdpt0[3];                         /* shared MMIO window (3-4 GiB), if mapped */
     a->pdpt[1] = (uint64_t)a->pd | PTE_P | PTE_W | PTE_U; /* private user GiB */
     return a;
 }
@@ -54,4 +62,28 @@ int user_range_ok(struct aspace *a, uint64_t va, uint64_t len, int write) {
         if (!(e & PTE_P) || !(e & PTE_U) || (write && !(e & PTE_W))) return 0;
     }
     return 1;
+}
+
+void vmm_map_mmio_high(void) {
+    if (kernel_pdpt0[3] & PTE_P) return;
+    uint64_t *pd = tbl(); if (!pd) kpanic("mmio: out of memory");
+    for (int i = 0; i < 512; i++)                         /* 2 MiB pages, present|write|huge|PWT|PCD */
+        pd[i] = (0xC0000000ULL + (uint64_t)i * 0x200000ULL) | PTE_P | PTE_W | 0x80 | 0x08 | 0x10;
+    kernel_pdpt0[3] = (uint64_t)pd | PTE_P | PTE_W;
+    __asm__ volatile("mov %%cr3,%%rax; mov %%rax,%%cr3" ::: "rax", "memory");
+}
+
+/* Identity-map a device MMIO range (2 MiB pages, uncached) in GiB 2 or 3. Call before creating processes. */
+int vmm_map_mmio(uint64_t phys, uint64_t len) {
+    uint64_t gi = phys >> 30;
+    if (gi < 2 || gi > 3 || ((phys + len - 1) >> 30) != gi) return -1;
+    if (!(kernel_pdpt0[gi] & PTE_P)) {
+        uint64_t *pd = tbl(); if (!pd) return -1;
+        kernel_pdpt0[gi] = (uint64_t)pd | PTE_P | PTE_W;
+    }
+    uint64_t *pd = (uint64_t *)(kernel_pdpt0[gi] & ~0xFFFULL);
+    for (uint64_t a = phys & ~0x1FFFFFULL; a < phys + len; a += 0x200000)
+        pd[(a >> 21) & 0x1FF] = a | PTE_P | PTE_W | (1ULL << 7) | (1ULL << 4) | (1ULL << 3);   /* PS | PCD | PWT */
+    __asm__ volatile("mov %%cr3,%%rax; mov %%rax,%%cr3" ::: "rax", "memory");
+    return 0;
 }

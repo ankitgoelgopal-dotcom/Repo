@@ -19,6 +19,18 @@ bin/qar keygen mykey && bin/qar pack pkg app.qar --key mykey.key
 Note: the kernel only trusts the key generated at ISO build time (printed by CI as part of the build, stored only in the
 build job). Production use needs a fixed, offline signing key compiled into the kernel image.
 
+## Networking
+The kernel has an e1000 NIC driver (the NIC QEMU emulates with `-device e1000`) and a polled IPv4 stack:
+ARP, ICMP echo, UDP, DHCP client, DNS client (A records), and a TCP client (connect, send, receive, close with
+retransmit). Apps use `os_socket / os_connect / os_send / os_recv / os_close / os_resolve / os_netinfo` from `os_api.h`.
+Apps must list `"net.connect"` in their manifest capabilities, otherwise the kernel returns `-EPERM`.
+`sdk/examples/netdemo` shows it: DNS lookup, then an HTTP GET over TCP.
+
+Limits (not built yet): IPv6, TLS/HTTPS, TCP listen/accept, out-of-order TCP reassembly, IP fragments, checksum
+verification on receive, Wi-Fi (QEMU has no Wi-Fi; it needs real hardware drivers), Bluetooth.
+**Emulator setting:** choose NIC model `e1000` (in Limbo: network card = e1000, network = user/SLIRP). Other NIC models
+(rtl8139, virtio, ne2k) have no driver yet, so the OS reports "no e1000 NIC found" and boots without network.
+
 ## App downloads
 See `docs/APP-STORE.md`. The signed store index and its builder exist; the in-OS downloader needs the network stack first.
 
@@ -39,7 +51,7 @@ have a real cross compiler: `make CROSS=x86_64-elf-`.
 `qaros-iso` and `qemu-logs` as artifacts.
 
 ## Test the ISO yourself
-**PC (QEMU):** `qemu-system-x86_64 -cdrom qaros.iso -m 256M -serial stdio`
+**PC (QEMU):** `qemu-system-x86_64 -cdrom qaros.iso -m 256M -serial stdio -netdev user,id=n0 -device e1000,netdev=n0`
 (add `-netdev user,id=n0 -device e1000,netdev=n0` for the NIC the network phase will use).
 
 **Android (Limbo PC Emulator):** download the `qaros-iso` artifact from the Actions run and unzip it.

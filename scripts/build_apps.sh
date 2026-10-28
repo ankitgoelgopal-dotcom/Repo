@@ -25,11 +25,12 @@ stage() {   # stage <name> <manifest> <extra qar-cc args...>
 E="$ROOT/sdk/examples"
 stage hello  "$E/hello/manifest.json" "$E/hello/main.c"
 stage crash  "$E/crash/manifest.json" "$E/crash/main.c"
+stage netdemo "$E/netdemo/manifest.json" "$E/netdemo/main.c"
 for t in A B; do
   lt=$(echo $t | tr A-Z a-z); sed "s/@T@/$lt/g" "$E/ticker/manifest.json.in" > "$PKG/ticker_$lt.json"
   stage "ticker_$lt" "$PKG/ticker_$lt.json" "$E/ticker/main.c" -DTAG="\"$t\""
 done
-for n in hello crash ticker_a ticker_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
+for n in hello crash netdemo ticker_a ticker_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
 
 # security demos: one tampered package and one signed by an untrusted key. The kernel must reject both.
 python3 "$ROOT/tools/qar.py" pack "$PKG/hello" "$APPS/untrusted.qar" --key "$KEYS/other.key" >/dev/null

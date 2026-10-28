@@ -47,7 +47,7 @@ iso: $(BUILD)/qaros.elf
 	grub-mkrescue -o $(BUILD)/qaros.iso $(BUILD)/isoroot 2>/dev/null
 
 run: iso
-	qemu-system-x86_64 -cdrom $(BUILD)/qaros.iso -m 256M -serial stdio
+	qemu-system-x86_64 -cdrom $(BUILD)/qaros.iso -m 256M -serial stdio -netdev user,id=n0 -device e1000,netdev=n0
 
 test: iso
 	scripts/test_qemu.sh $(BUILD)/qaros.iso

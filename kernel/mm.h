@@ -31,4 +31,6 @@ void  aspace_activate(struct aspace *a);   /* NULL = kernel space */
 int   aspace_map(struct aspace *a, uint64_t va, uint64_t pa, uint64_t flags);
 int   user_range_ok(struct aspace *a, uint64_t va, uint64_t len, int write);
 void  vmm_init(void);
+int   vmm_map_mmio(uint64_t phys, uint64_t len);
+void  vmm_map_mmio_high(void);   /* maps 3-4 GiB uncached into the kernel space (PCI BARs) */
 #endif

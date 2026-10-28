@@ -8,6 +8,11 @@ LOG="${2:-build/qemu-serial.log}"
 TIMEOUT="${QEMU_TIMEOUT:-60}"
 mkdir -p "$(dirname "$LOG")"; : > "$LOG"
 
+WWW="$(mktemp -d)"; echo "<html><body>QAR-OS network test page</body></html>" > "$WWW/index.html"
+python3 -m http.server 8000 --bind 0.0.0.0 --directory "$WWW" >/dev/null 2>&1 &
+HTTP_PID=$!; trap 'kill $HTTP_PID 2>/dev/null; rm -rf "$WWW"' EXIT
+sleep 1
+
 timeout "$TIMEOUT" qemu-system-x86_64 \
   -cdrom "$ISO" -m 256M -display none -no-reboot \
   -serial "file:$LOG" \
@@ -29,7 +34,15 @@ check "REJECTED tampered.qar"                "tampered package rejected"
 check "REJECTED untrusted.qar"               "untrusted signer rejected"
 check "Hello from a signed .qar app"         "ring-3 app ran (ELF load + syscalls)"
 check "heap works: 20 + 22 = 42"             "SDK libc malloc/snprintf work"
-check "socket syscall -> -38"                "network ABI reserved (ENOSYS)"
+check "e1000 MAC"                            "PCI scan found the e1000 NIC, driver up"
+check "DHCP: ip 10.0.2.15"                   "DHCP lease obtained"
+check "ARP: gateway is at"                   "ARP resolved the gateway"
+check "ICMP: ping gateway reply"             "ICMP echo to the gateway answered"
+check "without net.connect capability -> -1" "network blocked for apps without net.connect"
+check "TCP connected to 10.0.2.2:8000"       "TCP three-way handshake from an app"
+check "HTTP status line: HTTP/1.0 200 OK"    "HTTP response received over TCP"
+if grep -q "DNS example.com -> " "$LOG"; then echo "PASS: DNS lookup returned an address"
+else echo "WARN: DNS lookup failed (needs internet on the host; not counted as a failure)"; fi
 check "faulted: vector 14.*killed"           "user fault killed the process only"
 check "QAR-OS: ALL APPS FINISHED"            "kernel survived and reaped all processes"
 # preemption: both busy-looping tickers must interleave (A, B, A, B ... not all A then all B)

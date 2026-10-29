@@ -5,12 +5,16 @@
 set -u
 ISO="${1:-build/qaros.iso}"
 LOG="${2:-build/qemu-serial.log}"
-TIMEOUT="${QEMU_TIMEOUT:-60}"
+TIMEOUT="${QEMU_TIMEOUT:-120}"
 mkdir -p "$(dirname "$LOG")"; : > "$LOG"
 
 WWW="$(mktemp -d)"; echo "<html><body>QAR-OS network test page</body></html>" > "$WWW/index.html"
 python3 -m http.server 8000 --bind 0.0.0.0 --directory "$WWW" >/dev/null 2>&1 &
-HTTP_PID=$!; trap 'kill $HTTP_PID 2>/dev/null; rm -rf "$WWW"' EXIT
+HTTP_PID=$!
+CERTS="$(dirname "$ISO")/tlstest"
+python3 "$(dirname "$0")/../tests/https_server.py" "$CERTS" 8443 >/dev/null 2>&1 &
+HTTPS_PID=$!
+trap 'kill $HTTP_PID $HTTPS_PID 2>/dev/null; rm -rf "$WWW"' EXIT
 sleep 1
 
 timeout "$TIMEOUT" qemu-system-x86_64 \
@@ -43,6 +47,11 @@ check "TCP connected to 10.0.2.2:8000"       "TCP three-way handshake from an ap
 check "HTTP status line: HTTP/1.0 200 OK"    "HTTP response received over TCP"
 if grep -q "DNS example.com -> " "$LOG"; then echo "PASS: DNS lookup returned an address"
 else echo "WARN: DNS lookup failed (needs internet on the host; not counted as a failure)"; fi
+check "tlsdemo\[local-trusted\]: handshake OK"   "HTTPS handshake verified against a trusted CA"
+check "tlsdemo\[local-trusted\]: HTTPS status line: HTTP/1.0 200 OK" "HTTPS page fetched over TLS"
+check "tlsdemo\[local-untrusted\]: handshake REJECTED" "TLS rejects a certificate from an untrusted CA"
+if grep -q "tlsdemo\[internet\]: HTTPS status line: HTTP/1" "$LOG"; then echo "PASS: real HTTPS site fetched (certificate chain verified against built-in roots)"
+else echo "WARN: real-internet HTTPS not tested (needs internet on the host; not counted as a failure)"; fi
 check "faulted: vector 14.*killed"           "user fault killed the process only"
 check "QAR-OS: ALL APPS FINISHED"            "kernel survived and reaped all processes"
 # preemption: both busy-looping tickers must interleave (A, B, A, B ... not all A then all B)

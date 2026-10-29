@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "cpu.h"
 #include "sched.h"
+#include "rtc.h"
 struct gate { uint16_t lo, sel; uint8_t ist, flags; uint16_t mid; uint32_t hi, zero; } __attribute__((packed));
 static struct gate idt[256];
 extern uint64_t isr_table[48];
@@ -31,7 +32,7 @@ extern long syscall_dispatch(struct regs *r);
 
 void isr_handler(struct regs *r) {
     if (r->int_no == 32) {                                 /* timer */
-        outb(0x20, 0x20); ticks++; sched_tick(); return;
+        outb(0x20, 0x20); ticks++; if (!(ticks & 7)) entropy_event(); sched_tick(); return;
     }
     if (r->int_no == 128) { r->rax = (uint64_t)syscall_dispatch(r); return; }
     if (r->int_no >= 32) { outb(0x20, 0x20); return; }     /* spurious / unhandled IRQ */

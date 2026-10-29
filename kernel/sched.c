@@ -8,7 +8,7 @@ enum { T_FREE, T_READY, T_RUNNING, T_SLEEP, T_ZOMBIE };
 struct task {
     int pid, state, code; char name[32];
     uint64_t sp, wake, entry; uint8_t *kstack; struct aspace *as;
-    uint32_t caps; int fds[8];
+    uint32_t caps; int fds[8]; uint64_t brk;
 };
 #define MAX_TASKS 32
 #define KSTACK 16384
@@ -20,6 +20,7 @@ int current_pid(void) { return cur ? cur->pid : 0; }
 struct aspace *current_aspace(void) { return cur ? cur->as : 0; }
 uint32_t current_caps(void) { return cur ? cur->caps : 0; }
 int *current_fds(void) { return cur->fds; }
+uint64_t *current_brk(void) { return &cur->brk; }
 
 void sched_init(void) {            /* the boot thread becomes pid 0 (idle) */
     struct task *t = kmalloc(sizeof *t); memset(t, 0, sizeof *t);
@@ -71,7 +72,7 @@ int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_
     if (slot < 0) return -1;
     struct task *t = kmalloc(sizeof *t); uint8_t *ks = kmalloc(KSTACK);
     if (!t || !ks) return -1;
-    memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps;
+    memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps; t->brk = USER_HEAP_BASE;
     t->pid = next_pid++; t->state = T_READY; t->as = as; t->entry = entry; t->kstack = ks;
     for (int i = 0; i < 31 && name[i]; i++) t->name[i] = name[i];
     uint64_t *sp = (uint64_t *)(((uint64_t)ks + KSTACK) & ~0xFULL);

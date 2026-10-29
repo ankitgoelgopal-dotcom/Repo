@@ -1,0 +1,1 @@
+{"id":"org.qar.tlsdemo","name":"TLS Demo","version":"1.0.0","entry":"main","capabilities":["console","net.connect"]}

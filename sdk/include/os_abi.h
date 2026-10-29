@@ -8,6 +8,8 @@
 #define SYS_GETPID    3   /* getpid() -> pid                    */
 #define SYS_SLEEP_MS  4   /* sleep_ms(ms)                       */
 #define SYS_UPTIME_MS 5   /* uptime_ms() -> ms since boot       */
+#define SYS_GETRANDOM 23  /* getrandom(buf, len<=256) -> len    */
+#define SYS_TIME_UNIX 24  /* time_unix() -> seconds since 1970 (CMOS RTC, UTC) */
 /* Networking: needs the "net.connect" capability in the app manifest, else -EPERM (except NETINFO).
  * IPv4 addresses are host-order uint32: a<<24 | b<<16 | c<<8 | d. */
 #define SYS_SOCKET    16  /* socket(AF_INET=2, SOCK_STREAM=1 | SOCK_DGRAM=2, 0) -> fd  */
@@ -17,6 +19,8 @@
 #define SYS_CLOSE     20  /* close(fd)                                                 */
 #define SYS_RESOLVE   21  /* resolve(name, uint32_t *ip_out) via DNS -> 0              */
 #define SYS_NETINFO   22  /* netinfo(uint32_t out[4]) = {ip, netmask, gateway, dns}    */
+/* System services */
+#define SYS_SBRK      25  /* sbrk(increment >= 0) -> previous break; grows the heap    */
 #define QAR_EPERM        1
 #define QAR_ENOENT       2
 #define QAR_EIO          5

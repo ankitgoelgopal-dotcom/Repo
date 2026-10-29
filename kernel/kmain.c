@@ -6,6 +6,7 @@
 #include "elf.h"
 #include "qar.h"
 #include "net.h"
+#include "rtc.h"
 #include "trusted_key.h"
 
 extern char __kernel_start[], __kernel_end[];
@@ -91,6 +92,7 @@ void kmain(uint64_t mbi_addr, uint64_t magic) {
     kprintf("[cpu ] GDT/TSS/IDT loaded, timer at %d Hz\n", TICK_HZ);
     kprintf("QAR-OS: BOOT OK\n");
     net_init();
+    entropy_init();
 
     for (int i = 0; i < nmods; i++)
         launch(mods[i].name, (const uint8_t *)(uint64_t)mods[i].start, mods[i].end - mods[i].start);

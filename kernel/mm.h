@@ -5,7 +5,7 @@
 #define PAGE 4096ULL
 #define USER_BASE 0x40000000ULL     /* user space: [1 GiB, 1 GiB + 256 MiB) */
 #define USER_TOP  0x50000000ULL
-#define USER_STACK_PAGES 16
+#define USER_STACK_PAGES 64     /* 256 KiB: TLS handshakes need room */
 #define PTE_P 1ULL
 #define PTE_W 2ULL
 #define PTE_U 4ULL

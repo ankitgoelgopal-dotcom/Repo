@@ -10,4 +10,7 @@ int   strcmp(const char *a, const char *b);
 int   strncmp(const char *a, const char *b, size_t n);
 char *strcpy(char *d, const char *s);
 char *strchr(const char *s, int c);
+char *strstr(const char *h, const char *n);
+char *strncpy(char *d, const char *s, size_t n);
+void  explicit_bzero(void *p, size_t n);
 #endif

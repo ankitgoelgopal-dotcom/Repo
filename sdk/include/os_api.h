@@ -17,6 +17,10 @@ static inline int  os_getpid(void)          { return (int)os_syscall(SYS_GETPID,
 static inline void os_sleep_ms(unsigned ms) { os_syscall(SYS_SLEEP_MS, ms, 0, 0); }
 static inline uint64_t os_uptime_ms(void)   { return (uint64_t)os_syscall(SYS_UPTIME_MS, 0, 0, 0); }
 
+static inline long os_sbrk_raw(long inc) { return os_syscall(SYS_SBRK, inc, 0, 0); }   /* grows the heap; returns old break or -errno */
+static inline long os_getrandom(void *buf, size_t n) { return os_syscall(SYS_GETRANDOM, (long)buf, (long)n, 0); }
+static inline uint64_t os_time_unix(void)     { return (uint64_t)os_syscall(SYS_TIME_UNIX, 0, 0, 0); }
+
 /* ---- Networking (manifest must list the "net.connect" capability, otherwise calls return -QAR_EPERM) ---- */
 #define AF_INET     2
 #define SOCK_STREAM 1   /* TCP */

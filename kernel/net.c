@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "net.h"
 #include "mem.h"
+#include "rtc.h"
 
 struct netif nif;
 static int rx_depth;
@@ -226,6 +227,7 @@ void net_poll(void) {
     rx_depth++;
     while ((n = e1000_rx(f, sizeof f)) != 0) {
         if (n < 14) continue;
+        entropy_event();
         uint16_t et = rd16be(f + 12);
         if (et == 0x0800) ip_rx(f, (size_t)n);
         else if (et == 0x0806 && n >= 42 && rd16be(f + 14 + 6) <= 2) {

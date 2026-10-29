@@ -4,6 +4,8 @@
 #include "os_abi.h"
 #include "net.h"
 #include "mem.h"
+#include "mm.h"
+#include "rtc.h"
 
 static int fd_to_sock(uint64_t fd) {
     int *t = current_fds();
@@ -58,9 +60,23 @@ long syscall_dispatch(struct regs *r) {
         if (!user_range_ok(current_aspace(), b, c, 0)) return -QAR_EFAULT;
         for (uint64_t i = 0; i < c; i++) kputc(((const char *)b)[i]);
         return (long)c; }
+    case SYS_SBRK: {
+        long inc = (long)a; uint64_t *brk = current_brk(), old = *brk;
+        if (inc < 0) return -QAR_EINVAL;
+        uint64_t end = (old + (uint64_t)inc + PAGE - 1) & ~(PAGE - 1);
+        if (end > USER_HEAP_MAX) return -QAR_ENOMEM;
+        for (uint64_t va = (old + PAGE - 1) & ~(PAGE - 1); va < end; va += PAGE) {
+            uint64_t fr = pmm_alloc(); if (!fr || aspace_map(current_aspace(), va, fr, PTE_W)) return -QAR_ENOMEM;
+        }
+        *brk = old + (uint64_t)inc; return (long)old; }
     case SYS_YIELD:     task_yield(); return 0;
     case SYS_GETPID:    return current_pid();
     case SYS_SLEEP_MS:  task_sleep_ticks((a * TICK_HZ + 999) / 1000); return 0;
+    case SYS_GETRANDOM: {
+        if (b > 256) b = 256;
+        if (!user_range_ok(current_aspace(), a, b, 1)) return -QAR_EFAULT;
+        entropy_read((uint8_t *)a, b); return (long)b; }
+    case SYS_TIME_UNIX: return (long)rtc_unix_time();
     case SYS_UPTIME_MS: return (long)(ticks * 1000 / TICK_HZ);
     case SYS_SOCKET: case SYS_CONNECT: case SYS_SEND: case SYS_RECV: case SYS_CLOSE:
     case SYS_RESOLVE: case SYS_NETINFO:

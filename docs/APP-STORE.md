@@ -9,7 +9,7 @@
 | TLS (needed for HTTPS) | not built |
 | `qpm` client, `pkgd` install service, `/apps` storage | not built (needs VFS, IPC, network) |
 
-The network now works, so an app can fetch files over plain HTTP. Missing for real downloads: TLS (HTTPS), a
+The network now works, so an app can fetch files over plain HTTP. HTTPS also works (see README). Missing for real downloads: a
 file system to store the package, and the `qpm`/`pkgd` programs. Today apps still arrive as boot modules in the ISO.
 
 ## Flow once the pieces exist

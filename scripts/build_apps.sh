@@ -11,8 +11,34 @@ cp "$ROOT/tools/qar.py" "$SDK/bin/qar"; mkdir -p "$SDK/examples"; cp -r "$ROOT/s
 
 CF="-std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -mgeneral-regs-only -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Werror -I$SDK/include"
 $CC $CF -c "$SDK/crt0.S" -o "$SDK/crt0.o"
-for f in "$ROOT"/sdk/libc/*.c; do $CC $CF -c "$f" -o "$SDK/obj/$(basename "$f" .c).o"; done
-ar rcs "$SDK/lib/libqar.a" "$SDK"/obj/*.o
+for f in "$ROOT"/sdk/libc/*.c; do
+  case "$(basename "$f")" in os_tls.c|tls_glue.c) continue;; esac
+  $CC $CF -c "$f" -o "$SDK/obj/$(basename "$f" .c).o"
+done
+
+# TLS: Mbed TLS (vendored in third_party/) + glue, built with the same freestanding flags. Warnings are silenced for third-party code only.
+MB="$ROOT/third_party/mbedtls"
+MBF="-std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -mgeneral-regs-only -mno-mmx -mno-sse -mno-sse2 -w -I$SDK/include -I$ROOT/sdk/mbedtls -I$MB/include -I$MB/library -DMBEDTLS_CONFIG_FILE=\"qar_config.h\""
+mkdir -p "$SDK/obj_tls"
+NJ="$(nproc 2>/dev/null || echo 2)"
+for f in "$MB"/library/*.c; do
+  $CC $MBF -c "$f" -o "$SDK/obj_tls/$(basename "$f" .c).o" &
+  while [ "$(jobs -r | wc -l)" -ge "$NJ" ]; do sleep 0.05; done
+done
+wait
+for f in os_tls tls_glue; do $CC $MBF -c "$ROOT/sdk/libc/$f.c" -o "$SDK/obj_tls/$f.o"; done
+python3 "$ROOT/tools/mkcabundle.py" "$SDK/obj_tls/ca_bundle.c" >/dev/null
+$CC $MBF -c "$SDK/obj_tls/ca_bundle.c" -o "$SDK/obj_tls/ca_bundle.o"; rm -f "$SDK/obj_tls/ca_bundle.c"
+ar rcs "$SDK/lib/libqar.a" "$SDK"/obj/*.o "$SDK"/obj_tls/*.o
+rm -rf "$SDK/obj" "$SDK/obj_tls"
+
+# throwaway CA + server cert for the local HTTPS test, embedded in the tlsdemo app
+mkdir -p "$B/tlstest" && python3 "$ROOT/tools/mktestcerts.py" "$B/tlstest" >/dev/null
+python3 - "$B/tlstest/ca.pem" "$B/tlstest/test_ca.h" <<'PY'
+import sys
+pem = open(sys.argv[1]).read()
+open(sys.argv[2], "w").write("static const char test_ca_pem[] =\n" + "\n".join('"' + l + '\\n"' for l in pem.splitlines()) + ";\n")
+PY
 
 [ -f "$KEYS/dev.key" ]   || python3 "$ROOT/tools/qar.py" keygen "$KEYS/dev"   >/dev/null
 [ -f "$KEYS/other.key" ] || python3 "$ROOT/tools/qar.py" keygen "$KEYS/other" >/dev/null
@@ -26,11 +52,12 @@ E="$ROOT/sdk/examples"
 stage hello  "$E/hello/manifest.json" "$E/hello/main.c"
 stage crash  "$E/crash/manifest.json" "$E/crash/main.c"
 stage netdemo "$E/netdemo/manifest.json" "$E/netdemo/main.c"
+stage tlsdemo "$E/tlsdemo/manifest.json" "$E/tlsdemo/main.c" -I"$B/tlstest"
 for t in A B; do
   lt=$(echo $t | tr A-Z a-z); sed "s/@T@/$lt/g" "$E/ticker/manifest.json.in" > "$PKG/ticker_$lt.json"
   stage "ticker_$lt" "$PKG/ticker_$lt.json" "$E/ticker/main.c" -DTAG="\"$t\""
 done
-for n in hello crash netdemo ticker_a ticker_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
+for n in hello crash netdemo tlsdemo ticker_a ticker_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
 
 # security demos: one tampered package and one signed by an untrusted key. The kernel must reject both.
 python3 "$ROOT/tools/qar.py" pack "$PKG/hello" "$APPS/untrusted.qar" --key "$KEYS/other.key" >/dev/null

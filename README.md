@@ -26,10 +26,20 @@ retransmit). Apps use `os_socket / os_connect / os_send / os_recv / os_close / o
 Apps must list `"net.connect"` in their manifest capabilities, otherwise the kernel returns `-EPERM`.
 `sdk/examples/netdemo` shows it: DNS lookup, then an HTTP GET over TCP.
 
-Limits (not built yet): IPv6, TLS/HTTPS, TCP listen/accept, out-of-order TCP reassembly, IP fragments, checksum
+Limits (not built yet): IPv6, TCP listen/accept, out-of-order TCP reassembly, IP fragments, checksum
 verification on receive, Wi-Fi (QEMU has no Wi-Fi; it needs real hardware drivers), Bluetooth.
 **Emulator setting:** choose NIC model `e1000` (in Limbo: network card = e1000, network = user/SLIRP). Other NIC models
 (rtl8139, virtio, ne2k) have no driver yet, so the OS reports "no e1000 NIC found" and boots without network.
+
+## HTTPS (TLS)
+`os_tls.h` gives apps a TLS 1.2 client built on Mbed TLS 3.6 (vendored in `third_party/mbedtls`, Apache-2.0/GPL-2.0+).
+Certificates are always verified: chain to a trusted root (Mozilla roots embedded at SDK build time), validity dates (the
+kernel reads the CMOS clock) and the host name. Example: `sdk/examples/tlsdemo`. CI tests it against a local HTTPS server
+and also checks that a certificate from an unknown CA is rejected.
+Limits: TLS 1.3 is not supported (a server that only speaks 1.3 will fail), no client certificates, no session resumption,
+IPv4 only. Randomness comes from the kernel entropy pool; without RDRAND (most emulators) that is timing jitter only, which
+is fine for tests but weak, so do not rely on it to protect real secrets until a hardware RNG driver exists.
+The root store is a snapshot taken when the SDK is built; rebuild to refresh it.
 
 ## App downloads
 See `docs/APP-STORE.md`. The signed store index and its builder exist; the in-OS downloader needs the network stack first.

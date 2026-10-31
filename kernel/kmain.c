@@ -87,9 +87,9 @@ void kmain(uint64_t mbi_addr, uint64_t magic) {
     for (int i = 0; i < nmods; i++) pmm_reserve(mods[i].start, mods[i].end);
     kprintf("[mem ] frame allocator ready: %lu MiB free\n", (unsigned long)(pmm_free_frames() * 4 / 1024));
     heap_init(); vmm_init();
-    gdt_init(); idt_init(); pic_init(); pit_init(TICK_HZ);
+    gdt_init(); idt_init(); fpu_init(); pic_init(); pit_init(TICK_HZ);
     sched_init();
-    kprintf("[cpu ] GDT/TSS/IDT loaded, timer at %d Hz\n", TICK_HZ);
+    kprintf("[cpu ] GDT/TSS/IDT loaded, FPU/SSE on, timer at %d Hz\n", TICK_HZ);
     kprintf("QAR-OS: BOOT OK\n");
     net_init();
     entropy_init();

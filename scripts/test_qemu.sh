@@ -60,4 +60,21 @@ if tr -d '\r' < "$LOG" | grep -E '^\[[AB]\] tick' | awk '{print $1}' | uniq | wc
 if grep -q "THIS LINE MUST NEVER PRINT" "$LOG"; then echo "FAIL: crash app continued after fault"; fail=1; fi
 if grep -q "KERNEL PANIC" "$LOG"; then echo "FAIL: kernel panic"; fail=1; fi
 [ "$rc" -ne 124 ] && [ "$rc" -ne 0 ] && { echo "WARN: qemu exit code $rc"; }
+# ---- floating point: SSE/x87 on, state saved per task, SDK libm / printf / strtod exact ----
+check "FPU/SSE on"                           "kernel enabled FPU/SSE and per-task FP state"
+check "MATHTEST DONE"                        "math test app ran to completion"
+tr -d '\r' < "$LOG" > "$LOG.clean"
+if python3 "$(dirname "$0")/check_math.py" "$LOG.clean" > "$LOG.math" 2>&1; then
+  echo "PASS: $(head -1 "$LOG.math") (libm, printf %f/%e/%g, strtod match Python/IEEE-754)"
+else echo "FAIL: math check"; cat "$LOG.math"; fail=1; fi
+# two FP-heavy processes ran at the same time (their run intervals overlap) and each got the exact result
+a=$(grep -a '^FPU\[A\]' "$LOG.clean"); b=$(grep -a '^FPU\[B\]' "$LOG.clean")
+if [ -n "$a" ] && [ -n "$b" ] && python3 - "$a" "$b" <<'PY'
+import re,sys
+def iv(l): m=re.search(r'start=(\d+) end=(\d+)',l); return int(m[1]),int(m[2])
+(a0,a1),(b0,b1)=iv(sys.argv[1]),iv(sys.argv[2]); sys.exit(0 if a0<b1 and b0<a1 else 1)
+PY
+then echo "PASS: two floating-point processes ran concurrently without corrupting each other (exact bits checked)"
+else echo "FAIL: FPU isolation test"; fail=1; fi
+
 exit $fail

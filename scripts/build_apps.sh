@@ -9,11 +9,23 @@ rm -rf "$SDK" "$PKG" "$APPS"; mkdir -p "$SDK/lib" "$SDK/obj" "$APPS" "$PKG" "$KE
 cp -r "$ROOT/sdk/include" "$ROOT/sdk/bin" "$ROOT/sdk/app.ld" "$ROOT/sdk/crt0.S" "$SDK/"
 cp "$ROOT/tools/qar.py" "$SDK/bin/qar"; mkdir -p "$SDK/examples"; cp -r "$ROOT/sdk/examples/." "$SDK/examples/"
 
-CF="-std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -mgeneral-regs-only -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra -Werror -I$SDK/include"
+CF="-std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -fno-math-errno -ffp-contract=off -Wall -Wextra -Werror -I$SDK/include"
 $CC $CF -c "$SDK/crt0.S" -o "$SDK/crt0.o"
 for f in "$ROOT"/sdk/libc/*.c; do
-  case "$(basename "$f")" in os_tls.c|tls_glue.c) continue;; esac
+  case "$(basename "$f")" in os_tls.c|tls_glue.c|sqrt.c|strtod.c|ldmath.c) continue;; esac
   $CC $CF -c "$f" -o "$SDK/obj/$(basename "$f" .c).o"
+done
+
+# libm: musl's math routines (double + float), freestanding, SSE2 hardware floating point. -w silences third-party warnings only.
+MM="$ROOT/third_party/musl-math"
+mkdir -p "$SDK/obj_m"
+MF="-std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -fno-math-errno -ffp-contract=off -w -include $MM/shim/qar_musl.h -I$SDK/include -I$MM/shim -I$MM/internal -I$MM/src"
+for f in "$MM"/src/*.c; do $CC $MF -c "$f" -o "$SDK/obj_m/$(basename "$f" .c).o"; done
+$CC $MF -c "$ROOT/sdk/libc/sqrt.c" -o "$SDK/obj_m/sqrt_hw.o"
+ar rcs "$SDK/lib/libm.a" "$SDK"/obj_m/*.o; rm -rf "$SDK/obj_m"
+# strtod/strtof: musl's exact float scanner (needs a few x87 long double helpers), built into libc
+for f in "$MM"/scan/floatscan.c "$MM"/scan/shgetc.c "$MM"/scan/scalbnl.c "$MM"/scan/fmodl.c "$ROOT"/sdk/libc/strtod.c "$ROOT"/sdk/libc/ldmath.c; do
+  $CC $MF -I"$MM/scan" -c "$f" -o "$SDK/obj/s_$(basename "$f" .c).o"
 done
 
 # TLS: Mbed TLS (vendored in third_party/) + glue, built with the same freestanding flags. Warnings are silenced for third-party code only.
@@ -57,7 +69,11 @@ for t in A B; do
   lt=$(echo $t | tr A-Z a-z); sed "s/@T@/$lt/g" "$E/ticker/manifest.json.in" > "$PKG/ticker_$lt.json"
   stage "ticker_$lt" "$PKG/ticker_$lt.json" "$E/ticker/main.c" -DTAG="\"$t\""
 done
-for n in hello crash netdemo tlsdemo ticker_a ticker_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
+stage mathtest "$E/mathtest/manifest.json" "$E/mathtest/main.c"
+sed "s/@T@/a/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_a.json"; sed "s/@T@/b/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_b.json"
+stage fputest_a "$PKG/fputest_a.json" "$E/fputest/main.c" -DTAG='"A"' -DX0=1.5 -DY0=0.5
+stage fputest_b "$PKG/fputest_b.json" "$E/fputest/main.c" -DTAG='"B"' -DX0=2.5 -DY0=3.5
+for n in hello crash netdemo tlsdemo ticker_a ticker_b mathtest fputest_a fputest_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
 
 # security demos: one tampered package and one signed by an untrusted key. The kernel must reject both.
 python3 "$ROOT/tools/qar.py" pack "$PKG/hello" "$APPS/untrusted.qar" --key "$KEYS/other.key" >/dev/null

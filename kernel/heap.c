@@ -1,7 +1,7 @@
 #include "kernel.h"
 #include "mm.h"
 /* First-fit kernel heap with block splitting and forward coalescing. */
-struct blk { size_t size; int free; struct blk *next; };
+struct blk { size_t size; int free; struct blk *next; } __attribute__((aligned(16)));   /* 32 bytes: payloads stay 16-byte aligned (FXSAVE needs it) */
 static struct blk *head;
 #define HEAP_FRAMES 1024                  /* 4 MiB */
 void heap_init(void) {

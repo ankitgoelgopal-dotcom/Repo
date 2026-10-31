@@ -6,6 +6,7 @@
 
 enum { T_FREE, T_READY, T_RUNNING, T_SLEEP, T_ZOMBIE };
 struct task {
+    uint8_t fpu[512] __attribute__((aligned(16)));   /* FXSAVE image, must be first and 16-byte aligned */
     int pid, state, code; char name[32];
     uint64_t sp, wake, entry; uint8_t *kstack; struct aspace *as;
     uint32_t caps; int fds[8]; uint64_t brk;
@@ -45,6 +46,7 @@ static void schedule(void) {
     next->state = T_RUNNING; cur = next;
     if (next->kstack) tss_set_rsp0((uint64_t)next->kstack + KSTACK);
     aspace_activate(next->as);
+    fxsave(prev->fpu); fxrstor(next->fpu);
     switch_context(&prev->sp, next->sp);
 }
 
@@ -72,7 +74,7 @@ int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_
     if (slot < 0) return -1;
     struct task *t = kmalloc(sizeof *t); uint8_t *ks = kmalloc(KSTACK);
     if (!t || !ks) return -1;
-    memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps; t->brk = USER_HEAP_BASE;
+    memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps; t->brk = USER_HEAP_BASE; memcpy(t->fpu, fpu_default, sizeof t->fpu);
     t->pid = next_pid++; t->state = T_READY; t->as = as; t->entry = entry; t->kstack = ks;
     for (int i = 0; i < 31 && name[i]; i++) t->name[i] = name[i];
     uint64_t *sp = (uint64_t *)(((uint64_t)ks + KSTACK) & ~0xFULL);

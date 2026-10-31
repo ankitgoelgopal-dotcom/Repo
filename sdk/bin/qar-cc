@@ -2,6 +2,6 @@
 # qar-cc: compile and link a program for QAR-OS.   usage: qar-cc main.c [more.c] -o app.elf
 SDK="$(cd "$(dirname "$0")/.." && pwd)"
 exec ${CC:-gcc} -std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -static -no-pie \
-  -mno-red-zone -mgeneral-regs-only -mno-mmx -mno-sse -mno-sse2 -Wall -Wextra \
+  -mno-red-zone -fno-math-errno -ffp-contract=off -Wall -Wextra \
   -I"$SDK/include" -nostdlib -Wl,--build-id=none -z noexecstack -z max-page-size=0x1000 -T "$SDK/app.ld" \
-  "$SDK/crt0.o" "$@" "$SDK/lib/libqar.a" "$(${CC:-gcc} -print-libgcc-file-name)"
+  -L"$SDK/lib" "$SDK/crt0.o" "$@" -Wl,--start-group "$SDK/lib/libm.a" "$SDK/lib/libqar.a" -Wl,--end-group "$(${CC:-gcc} -print-libgcc-file-name)"

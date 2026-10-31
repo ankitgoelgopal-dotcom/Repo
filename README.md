@@ -41,6 +41,16 @@ IPv4 only. Randomness comes from the kernel entropy pool; without RDRAND (most e
 is fine for tests but weak, so do not rely on it to protect real secrets until a hardware RNG driver exists.
 The root store is a snapshot taken when the SDK is built; rebuild to refresh it.
 
+## Floating point and math
+The kernel turns on x87/SSE2 and saves each process's 512-byte FXSAVE state on every task switch, so processes cannot
+corrupt each other's floating-point registers (CI runs two FP-heavy processes at once and checks the exact result bits).
+The kernel itself still uses integers only. Apps built with `qar-cc` can use `float` and `double` freely.
+SDK additions: `math.h` (libm from musl, MIT, `third_party/musl-math`: trig, exp/log/pow, sqrt, hyperbolic, erf/gamma,
+rounding, `float` and `double` versions), `fenv.h`, `errno.h`, `ctype.h`, exact `printf` `%f %e %g %a` (musl's algorithm),
+`strtod`/`strtol`/`qsort`. CI compares 500+ guest results against Python/IEEE-754 (`scripts/check_math.py`).
+Limits: `long double` has only a few helpers (`fabsl`, `copysignl`, `fmodl`, `scalbnl`), AVX is not enabled, FP exceptions
+are masked (division by zero gives inf/NaN, as on most systems), no `complex.h`.
+
 ## App downloads
 See `docs/APP-STORE.md`. The signed store index and its builder exist; the in-OS downloader needs the network stack first.
 

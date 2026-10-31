@@ -14,6 +14,10 @@ extern volatile uint64_t ticks;
 #define TICK_HZ 100
 void switch_context(uint64_t *old_sp, uint64_t new_sp);
 void enter_user(uint64_t rip, uint64_t rsp);
+void fpu_init(void);
+extern uint8_t fpu_default[512];
+static inline void fxsave(void *p)  { __asm__ volatile("fxsave (%0)"  :: "r"(p) : "memory"); }
+static inline void fxrstor(void *p) { __asm__ volatile("fxrstor (%0)" :: "r"(p) : "memory"); }
 static inline void sti(void) { __asm__ volatile("sti"); }
 static inline void cli(void) { __asm__ volatile("cli"); }
 #endif

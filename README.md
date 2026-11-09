@@ -51,6 +51,19 @@ rounding, `float` and `double` versions), `fenv.h`, `errno.h`, `ctype.h`, exact 
 Limits: `long double` has only a few helpers (`fabsl`, `copysignl`, `fmodl`, `scalbnl`), AVX is not enabled, FP exceptions
 are masked (division by zero gives inf/NaN, as on most systems), no `complex.h`.
 
+## Web libraries (building blocks for a browser; there is no browser yet)
+All are built into the SDK and tested inside the OS by CI (`scripts/test_qemu.sh`):
+| Library | In SDK as | What CI checks on the guest |
+|---|---|---|
+| QuickJS (JavaScript engine, MIT) | `-lquickjs`, `qar_js.h` | 64 ES2023 conformance checks (BigInt, classes, generators, exact number printing) |
+| zlib 1.3.2 | `-lz` | gunzip of a Python-made gzip, deflate levels 0-9, corrupt input rejected |
+| libpng 1.6.54 | `-lpng -lz` | pixel-exact decode of PNGs from an independent encoder (all filters, palette+alpha, 16-bit, Adam7), damaged files rejected |
+| Mbed TLS 3.6 | `os_tls.h` | HTTPS with certificate checks (TLS 1.2) |
+| musl libm | `-lm` / `math.h` | 504 results compared with Python/IEEE-754 |
+Also added to the C library: a better `malloc` (grows through `sbrk`), `setjmp`/`longjmp`, `assert.h`, `inttypes.h`, `limits.h`,
+`sys/types.h`, more `string.h`/`time.h`/`stdio.h`. Still missing for a real browser: HTML/CSS parser, fonts, JPEG/WebP, Brotli,
+screen and input, file system, threads, `mmap`. See `docs/BROWSER-ENGINES.md`.
+
 ## App downloads
 See `docs/APP-STORE.md`. The signed store index and its builder exist; the in-OS downloader needs the network stack first.
 

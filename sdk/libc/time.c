@@ -9,7 +9,7 @@ struct tm *gmtime_r(const time_t *tt, struct tm *o) {
     unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; long long y = (long long)yoe + era * 400;
     unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100); unsigned mp = (5 * doy + 2) / 153;
     unsigned d = doy - (153 * mp + 2) / 5 + 1; unsigned m = mp < 10 ? mp + 3 : mp - 9; if (m <= 2) y++;
-    o->tm_year = (int)(y - 1900); o->tm_mon = (int)m - 1; o->tm_mday = (int)d; o->tm_isdst = 0;
+    o->tm_year = (int)(y - 1900); o->tm_mon = (int)m - 1; o->tm_mday = (int)d; o->tm_isdst = 0; o->tm_gmtoff = 0; o->tm_zone = "UTC";
     static const int cum[] = {0,31,59,90,120,151,181,212,243,273,304,334};
     int leap = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)); o->tm_yday = cum[m - 1] + (int)d - 1 + (leap && m > 2);
     return o;

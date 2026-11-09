@@ -1,0 +1,31 @@
+#ifndef QAR_INTTYPES_H
+#define QAR_INTTYPES_H
+#include <stdint.h>
+/* LP64: int64_t is long. */
+#define PRId8 "d"
+#define PRId16 "d"
+#define PRId32 "d"
+#define PRId64 "ld"
+#define PRIi32 "i"
+#define PRIi64 "li"
+#define PRIu8 "u"
+#define PRIu16 "u"
+#define PRIu32 "u"
+#define PRIu64 "lu"
+#define PRIx8 "x"
+#define PRIx16 "x"
+#define PRIx32 "x"
+#define PRIx64 "lx"
+#define PRIX32 "X"
+#define PRIX64 "lX"
+#define PRIo32 "o"
+#define PRIo64 "lo"
+#define PRIdPTR "ld"
+#define PRIuPTR "lu"
+#define PRIxPTR "lx"
+#define PRIdMAX "ld"
+#define PRIuMAX "lu"
+#define SCNd64 "ld"
+#define SCNu64 "lu"
+#define SCNx64 "lx"
+#endif

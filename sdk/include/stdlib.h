@@ -19,4 +19,9 @@ long long strtoll(const char *s, char **end, int base);
 unsigned long long strtoull(const char *s, char **end, int base);
 void  qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *));
 void *bsearch(const void *key, const void *base, size_t n, size_t size, int (*cmp)(const void *, const void *));
+#include <alloca.h>
+void  abort(void) __attribute__((noreturn));
+char *getenv(const char *name);
+long  labs(long x);
+long long llabs(long long x);
 #endif

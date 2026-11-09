@@ -17,12 +17,20 @@ HTTPS_PID=$!
 trap 'kill $HTTP_PID $HTTPS_PID 2>/dev/null; rm -rf "$WWW"' EXIT
 sleep 1
 
-timeout "$TIMEOUT" qemu-system-x86_64 \
+qemu-system-x86_64 \
   -cdrom "$ISO" -m 256M -display none -no-reboot \
   -serial "file:$LOG" \
   -netdev user,id=n0 -device e1000,netdev=n0 \
-  >/dev/null 2>&1
-rc=$?   # 124 = killed by timeout (expected: kernel idles in hlt)
+  >/dev/null 2>&1 &
+QPID=$!
+# the kernel idles after the last app exits, so stop QEMU as soon as it reports that (or at the timeout)
+for _ in $(seq 1 "$TIMEOUT"); do
+  grep -aq "ALL APPS FINISHED" "$LOG" 2>/dev/null && { sleep 2; break; }
+  kill -0 "$QPID" 2>/dev/null || break
+  sleep 1
+done
+kill "$QPID" 2>/dev/null; wait "$QPID" 2>/dev/null
+rc=0
 
 echo "---- serial log ----"; cat "$LOG"; echo "--------------------"
 
@@ -76,5 +84,17 @@ def iv(l): m=re.search(r'start=(\d+) end=(\d+)',l); return int(m[1]),int(m[2])
 PY
 then echo "PASS: two floating-point processes ran concurrently without corrupting each other (exact bits checked)"
 else echo "FAIL: FPU isolation test"; fail=1; fi
+
+# ---- JavaScript engine (QuickJS) running on the OS ----
+if grep -aq "JSTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: QuickJS engine: $(grep -a 'JSTEST DONE' "$LOG" | tr -d '\r' | sed 's/JSTEST DONE //') (ES2023 features, BigInt, exact number printing)"
+else echo "FAIL: JavaScript engine tests"; grep -a "^JS FAIL\|JSTEST" "$LOG" | tr -d '\r' | head; fail=1; fi
+
+# ---- zlib (gzip/deflate), checked against Python's zlib ----
+if grep -aq "ZTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: zlib: $(grep -a 'ZTEST DONE' "$LOG" | tr -d '\r' | sed 's/ZTEST DONE //') (gunzip of a Python-made gzip, deflate levels 0-9, corrupt input rejected)"
+else echo "FAIL: zlib tests"; grep -a "^Z \|ZTEST" "$LOG" | tr -d '\r' | head; fail=1; fi
+
+# ---- libpng: decodes PNGs from an independent encoder, pixel-exact; damaged files fail cleanly ----
+if grep -aq "PNGTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: libpng: $(grep -a 'PNGTEST DONE' "$LOG" | tr -d '\r' | sed 's/PNGTEST DONE //') (all filters, palette+alpha, 16-bit, Adam7; damaged files rejected)"
+else echo "FAIL: libpng tests"; grep -a "^PNG" "$LOG" | tr -d '\r' | head; fail=1; fi
 
 exit $fail

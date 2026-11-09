@@ -97,4 +97,8 @@ else echo "FAIL: zlib tests"; grep -a "^Z \|ZTEST" "$LOG" | tr -d '\r' | head; f
 if grep -aq "PNGTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: libpng: $(grep -a 'PNGTEST DONE' "$LOG" | tr -d '\r' | sed 's/PNGTEST DONE //') (all filters, palette+alpha, 16-bit, Adam7; damaged files rejected)"
 else echo "FAIL: libpng tests"; grep -a "^PNG" "$LOG" | tr -d '\r' | head; fail=1; fi
 
+# ---- Lexbor: HTML5 parser, CSS parser, selectors, style cascade, URL parser ----
+if grep -aq "HTMLTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: Lexbor: $(grep -a 'HTMLTEST DONE' "$LOG" | tr -d '\r' | sed 's/HTMLTEST DONE //') (HTML5 tree repair, selectors L4, CSS cascade, WHATWG URLs, deep-nesting and garbage input)"
+else echo "FAIL: Lexbor tests"; grep -a "^HTML" "$LOG" | tr -d '\r' | head; fail=1; fi
+
 exit $fail

@@ -49,6 +49,18 @@ for f in png pngerror pngget pngmem pngpread pngread pngrio pngrtran pngrutil pn
 cp "$PL/png.h" "$PL/pngconf.h" "$PL/pnglibconf.h" "$SDK/include/"
 ar rcs "$SDK/lib/libpng.a" "$SDK"/obj_png/*.o; rm -rf "$SDK/obj_png"
 
+# Lexbor (vendored in third_party/lexbor): HTML5 parser + DOM, CSS parser, selectors, style cascade, WHATWG URL -> liblexbor.a
+LX="$ROOT/third_party/lexbor/source"; mkdir -p "$SDK/obj_lxb"
+LF="$NOHOST -std=gnu11 -O2 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -mno-red-zone -fno-math-errno -ffp-contract=off -w -DLEXBOR_STATIC -I$SDK/include -I$LX"
+NJ="$(nproc 2>/dev/null || echo 2)"
+for f in $(find "$LX" -name '*.c' | grep -v windows | grep -v "ports/posix/lexbor/core/fs.c" | grep -v "ports/posix/lexbor/core/perf.c"); do
+  $CC $LF -c "$f" -o "$SDK/obj_lxb/$(echo "${f#$LX/}" | tr / _).o" &
+  while [ "$(jobs -r | wc -l)" -ge "$NJ" ]; do sleep 0.05; done
+done
+wait
+( cd "$LX" && find lexbor -name '*.h' -exec cp --parents {} "$SDK/include/" \; )
+ar rcs "$SDK/lib/liblexbor.a" "$SDK"/obj_lxb/*.o; rm -rf "$SDK/obj_lxb"
+
 # libm: musl's math routines (double + float), freestanding, SSE2 hardware floating point. -w silences third-party warnings only.
 MM="$ROOT/third_party/musl-math"
 mkdir -p "$SDK/obj_m"
@@ -124,10 +136,11 @@ PY
 stage ztest "$E/ztest/manifest.json" "$E/ztest/main.c" -I"$B" -lz
 python3 "$ROOT/tools/mkpngtests.py" "$B/png_cases.h"
 stage pngtest "$E/pngtest/manifest.json" "$E/pngtest/main.c" -I"$B" -lpng -lz
+stage htmltest "$E/htmltest/manifest.json" "$E/htmltest/main.c" -DLEXBOR_STATIC -llexbor
 sed "s/@T@/a/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_a.json"; sed "s/@T@/b/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_b.json"
 stage fputest_a "$PKG/fputest_a.json" "$E/fputest/main.c" -DTAG='"A"' -DX0=1.5 -DY0=0.5
 stage fputest_b "$PKG/fputest_b.json" "$E/fputest/main.c" -DTAG='"B"' -DX0=2.5 -DY0=3.5
-for n in hello crash netdemo tlsdemo ticker_a ticker_b mathtest jstest ztest pngtest fputest_a fputest_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
+for n in hello crash netdemo tlsdemo ticker_a ticker_b mathtest jstest ztest pngtest htmltest fputest_a fputest_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
 
 # security demos: one tampered package and one signed by an untrusted key. The kernel must reject both.
 python3 "$ROOT/tools/qar.py" pack "$PKG/hello" "$APPS/untrusted.qar" --key "$KEYS/other.key" >/dev/null

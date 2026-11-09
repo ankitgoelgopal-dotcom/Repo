@@ -42,6 +42,7 @@ full engine, and the engine needs everything in section 2.
 | Storage libs | SQLite (cookies, history, IndexedDB), leveldb-like stores | **missing** (needs files) |
 | Security | per-site process isolation, sandbox (no filesystem/network for renderers), capability model | partial: signed packages, per-app capabilities (`net.connect`) |
 | JS engine | QuickJS/LibJS/V8 (V8 JIT needs `mprotect`; can run jitless) | **QuickJS runs** (64 tests) |
+| HTML/CSS parsing | HTML5 parser, DOM, CSS parser, selectors, cascade, URL parser | **Lexbor runs** (34 tests). Gap: Lexbor 2.7 does not expose `@media` contents, and it has no layout or painting; those still have to be written (or taken from NetSurf/another engine) |
 
 ## 3. Suggested order
 

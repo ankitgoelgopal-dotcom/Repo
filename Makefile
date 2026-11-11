@@ -8,7 +8,7 @@ BUILD  = build
 
 CFLAGS = -std=gnu11 -ffreestanding -fno-stack-protector -fno-pic -fno-pie \
          -mno-red-zone -mgeneral-regs-only -mno-mmx -mno-sse -mno-sse2 \
-         -Wall -Wextra -Werror -O2 -g -Ikernel -Isdk/include -I$(BUILD)
+         -Wall -Wextra -Werror -Wno-misleading-indentation -O2 -g -Ikernel -Isdk/include -I$(BUILD)
 ED     = third_party/ed25519/src
 TPFLAGS = -std=gnu11 -ffreestanding -fno-stack-protector -fno-pic -fno-pie -mno-red-zone -mgeneral-regs-only \
           -mno-mmx -mno-sse -mno-sse2 -O2 -g -I$(ED) -Ikernel

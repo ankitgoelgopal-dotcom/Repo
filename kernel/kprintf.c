@@ -1,9 +1,11 @@
 #include "kernel.h"
+#include "gui.h"
 
 void kputc(char c) {
     if (c == '\n') serial_putc('\r');
     serial_putc(c);
     vga_putc(c);
+    gui_console_putc(c);
 }
 
 static void put_num(unsigned long long v, unsigned base, int width, char pad) {

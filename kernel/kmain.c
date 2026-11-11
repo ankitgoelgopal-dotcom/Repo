@@ -7,6 +7,8 @@
 #include "qar.h"
 #include "net.h"
 #include "rtc.h"
+#include "fb.h"
+#include "gui.h"
 #include "trusted_key.h"
 
 extern char __kernel_start[], __kernel_end[];
@@ -48,6 +50,7 @@ static void parse_multiboot(uint64_t mbi_addr) {
             struct mb2_fb_tag *f = (struct mb2_fb_tag *)tag;
             kprintf("[gfx ] framebuffer %ux%ux%u @ %p (type %u)\n",
                     f->width, f->height, (unsigned)f->bpp, (void *)f->addr, (unsigned)f->fb_type);
+            fb_boot_info(f->addr, f->pitch, f->width, f->height, f->bpp, f->fb_type, f->red_pos, f->green_pos, f->blue_pos);
             break; }
         }
         tag = (struct mb2_tag *)(((uint64_t)tag + tag->size + 7) & ~7ull);
@@ -63,10 +66,10 @@ static int launch(const char *name, const uint8_t *blob, uint64_t len) {
     if (!as) { kprintf("[qar ] out of memory\n"); return -1; }
     int e = elf_load(as, info.entry_data, info.entry_size, &entry);
     if (e) { kprintf("[qar ] %s: ELF load failed (%d)\n", info.id, e); aspace_destroy(as); return -1; }
-    uint32_t caps = kstrstr(info.caps, "net.connect") ? CAP_NET : 0;
+    uint32_t caps = (kstrstr(info.caps, "net.connect") ? CAP_NET : 0) | (kstrstr(info.caps, "gui.window") ? CAP_GUI : 0);
     int pid = task_spawn_user(info.id, as, entry, caps);
     if (pid < 0) { aspace_destroy(as); return -1; }
-    kprintf("[proc] started %s as pid %d%s\n", info.id, pid, caps ? " (net.connect granted)" : "");
+    kprintf("[proc] started %s as pid %d%s\n", info.id, pid, (caps & CAP_NET) ? " (net.connect granted)" : ((caps & CAP_GUI) ? " (gui.window granted)" : ""));
     return pid;
 }
 
@@ -93,6 +96,7 @@ void kmain(uint64_t mbi_addr, uint64_t magic) {
     kprintf("QAR-OS: BOOT OK\n");
     net_init();
     entropy_init();
+    if (gui_init() == 0) task_spawn_kernel("gui", gui_thread);     /* window system: framebuffer + PS/2 input + compositor thread */
 
     for (int i = 0; i < nmods; i++)
         launch(mods[i].name, (const uint8_t *)(uint64_t)mods[i].start, mods[i].end - mods[i].start);

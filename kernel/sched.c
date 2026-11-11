@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "cpu.h"
 #include "sched.h"
+#include "gui.h"
 #include "mem.h"
 #include "net.h"
 
@@ -10,6 +11,7 @@ struct task {
     int pid, state, code; char name[32];
     uint64_t sp, wake, entry; uint8_t *kstack; struct aspace *as;
     uint32_t caps; int fds[8]; uint64_t brk;
+    void (*kfn)(void); int is_kernel;                /* kernel threads run kfn in ring 0 (e.g. the window system) */
 };
 #define MAX_TASKS 32
 #define KSTACK 16384
@@ -57,6 +59,7 @@ void task_sleep_ticks(uint64_t t) { cli(); cur->wake = ticks + t; cur->state = T
 void task_exit(int code) {
     cli(); cur->code = code;
     for (int i = 0; i < 8; i++) if (cur->fds[i] >= 0) { net_close(cur->fds[i]); cur->fds[i] = -1; }   /* release sockets */
+    gui_close_owner(cur->pid);                                                                          /* remove its windows */
     cur->state = T_ZOMBIE;
     kprintf("[proc] pid %d (%s) exited with code %d\n", cur->pid, cur->name, code);
     schedule();
@@ -65,17 +68,18 @@ void task_exit(int code) {
 }
 
 static void task_main(void) {          /* first code run by every new task, on its own kernel stack */
+    if (cur->kfn) { sti(); cur->kfn(); task_exit(0); }
     enter_user(cur->entry, USER_TOP - 16);
     for (;;) ;
 }
 
-int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_t caps) {
+static int spawn(const char *name, struct aspace *as, uint64_t entry, uint32_t caps, void (*kfn)(void)) {
     int slot = -1; for (int i = 1; i < MAX_TASKS; i++) if (!tasks[i]) { slot = i; break; }
     if (slot < 0) return -1;
     struct task *t = kmalloc(sizeof *t); uint8_t *ks = kmalloc(KSTACK);
     if (!t || !ks) return -1;
     memset(t, 0, sizeof *t); for (int i = 0; i < 8; i++) t->fds[i] = -1; t->caps = caps; t->brk = USER_HEAP_BASE; memcpy(t->fpu, fpu_default, sizeof t->fpu);
-    t->pid = next_pid++; t->state = T_READY; t->as = as; t->entry = entry; t->kstack = ks;
+    t->pid = next_pid++; t->state = T_READY; t->as = as; t->entry = entry; t->kstack = ks; t->kfn = kfn; t->is_kernel = kfn != 0;
     for (int i = 0; i < 31 && name[i]; i++) t->name[i] = name[i];
     uint64_t *sp = (uint64_t *)(((uint64_t)ks + KSTACK) & ~0xFULL);
     *--sp = 0;                          /* alignment pad: rsp = 8 mod 16 at task_main entry */
@@ -84,6 +88,9 @@ int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_
     t->sp = (uint64_t)sp; tasks[slot] = t;
     return t->pid;
 }
+
+int task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_t caps) { return spawn(name, as, entry, caps, 0); }
+int task_spawn_kernel(const char *name, void (*fn)(void)) { return spawn(name, 0, 0, 0, fn); }
 
 void sched_reap(void) {                /* idle thread frees finished tasks */
     for (int i = 1; i < MAX_TASKS; i++) {
@@ -94,6 +101,6 @@ void sched_reap(void) {                /* idle thread frees finished tasks */
     }
 }
 int sched_live_user_tasks(void) {
-    int n = 0; for (int i = 1; i < MAX_TASKS; i++) if (tasks[i]) n++;
+    int n = 0; for (int i = 1; i < MAX_TASKS; i++) if (tasks[i] && !tasks[i]->is_kernel) n++;
     return n;
 }

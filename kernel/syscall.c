@@ -6,6 +6,7 @@
 #include "mem.h"
 #include "mm.h"
 #include "rtc.h"
+#include "gui.h"
 
 static int fd_to_sock(uint64_t fd) {
     int *t = current_fds();
@@ -81,6 +82,8 @@ long syscall_dispatch(struct regs *r) {
     case SYS_SOCKET: case SYS_CONNECT: case SYS_SEND: case SYS_RECV: case SYS_CLOSE:
     case SYS_RESOLVE: case SYS_NETINFO:
         return net_syscall(r->rax, a, b, c);
+    case SYS_SCREEN_INFO: case SYS_WIN_CREATE: case SYS_WIN_DESTROY: case SYS_WIN_PRESENT: case SYS_WIN_POLL: case SYS_WIN_TITLE:
+        return gui_syscall(r->rax, a, b, c, r->r10);
     default:            return -QAR_ENOSYS;
     }
 }

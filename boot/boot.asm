@@ -13,6 +13,13 @@ mb2_header:
     dd MB2_ARCH_I386
     dd mb2_header_end - mb2_header
     dd -(MB2_MAGIC + MB2_ARCH_I386 + (mb2_header_end - mb2_header))
+    dw 5                        ; framebuffer request tag (type 5)
+    dw 1                        ; flags: optional
+    dd 20
+    dd 1024                     ; width
+    dd 768                      ; height
+    dd 32                       ; depth
+    dd 0                        ; pad to 8-byte alignment
     dw 0                        ; end tag
     dw 0
     dd 8

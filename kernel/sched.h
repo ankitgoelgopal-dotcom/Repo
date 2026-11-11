@@ -4,6 +4,8 @@
 #include "mm.h"
 void sched_init(void);
 #define CAP_NET 1u
+#define CAP_GUI 2u
+int  task_spawn_kernel(const char *name, void (*fn)(void));   /* ring-0 thread (not counted as an app) */
 int  task_spawn_user(const char *name, struct aspace *as, uint64_t entry, uint32_t caps);
 uint32_t current_caps(void);
 int *current_fds(void);

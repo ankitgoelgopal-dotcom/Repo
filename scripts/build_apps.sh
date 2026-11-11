@@ -107,6 +107,7 @@ stage() {   # stage <name> <manifest> <extra qar-cc args...>
 }
 E="$ROOT/sdk/examples"
 stage hello  "$E/hello/manifest.json" "$E/hello/main.c"
+stage guidemo "$E/guidemo/manifest.json" "$E/guidemo/main.c"
 stage crash  "$E/crash/manifest.json" "$E/crash/main.c"
 stage netdemo "$E/netdemo/manifest.json" "$E/netdemo/main.c"
 stage tlsdemo "$E/tlsdemo/manifest.json" "$E/tlsdemo/main.c" -I"$B/tlstest"
@@ -140,7 +141,7 @@ stage htmltest "$E/htmltest/manifest.json" "$E/htmltest/main.c" -DLEXBOR_STATIC 
 sed "s/@T@/a/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_a.json"; sed "s/@T@/b/g" "$E/fputest/manifest.json.in" > "$PKG/fputest_b.json"
 stage fputest_a "$PKG/fputest_a.json" "$E/fputest/main.c" -DTAG='"A"' -DX0=1.5 -DY0=0.5
 stage fputest_b "$PKG/fputest_b.json" "$E/fputest/main.c" -DTAG='"B"' -DX0=2.5 -DY0=3.5
-for n in hello crash netdemo tlsdemo ticker_a ticker_b mathtest jstest ztest pngtest htmltest fputest_a fputest_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
+for n in hello crash netdemo tlsdemo ticker_a ticker_b mathtest jstest ztest pngtest htmltest guidemo fputest_a fputest_b; do python3 "$ROOT/tools/qar.py" pack "$PKG/$n" "$APPS/$n.qar" --key "$KEYS/dev.key" >/dev/null; done
 
 # security demos: one tampered package and one signed by an untrusted key. The kernel must reject both.
 python3 "$ROOT/tools/qar.py" pack "$PKG/hello" "$APPS/untrusted.qar" --key "$KEYS/other.key" >/dev/null

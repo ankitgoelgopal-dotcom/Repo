@@ -32,8 +32,8 @@ full engine, and the engine needs everything in section 2.
 | Processes | `fork`/`exec` or `posix_spawn`, signals, exit status, process sandboxing | partial: spawn from `.qar`, kill on fault; no signals |
 | Network | non-blocking BSD sockets, `getaddrinfo`, IPv6, TLS 1.3, HTTP/2, UDP for QUIC | partial: IPv4 TCP client, UDP, DNS, DHCP, TLS 1.2; **missing**: IPv6, TLS 1.3, TCP listen, out-of-order TCP |
 | Time | monotonic + wall clock, timers, time zones | partial: RTC wall clock, uptime; no time zones |
-| Graphics | framebuffer, compositor, window system, shared surfaces, vsync; GPU (Vulkan/GL) or a fast software rasterizer (Skia CPU) | **missing** (window-system code is in progress, unpushed) |
-| Input | keyboard, mouse, touch, scroll, IME, clipboard | **missing** |
+| Graphics | framebuffer, compositor, window system, shared surfaces, vsync; GPU (Vulkan/GL) or a fast software rasterizer (Skia CPU) | partial: **framebuffer, compositor and window system work** (docs/WINDOW-SYSTEM.md); missing: shared-memory surfaces, vsync, GPU, a rasterizer |
+| Input | keyboard, mouse, touch, scroll, IME, clipboard | partial: PS/2 keyboard, mouse and wheel work; missing: USB HID, touch, IME, clipboard |
 | Fonts/text | FreeType, HarfBuzz (shaping), fontconfig or a font loader, ICU (Unicode, bidi, line breaking) | **missing** |
 | Media | image codecs (PNG done; JPEG, WebP, AVIF, GIF), audio/video codecs, audio output | partial: PNG, zlib |
 | Compression | gzip/deflate, Brotli, zstd | partial: zlib; **missing**: Brotli, zstd |
@@ -46,7 +46,7 @@ full engine, and the engine needs everything in section 2.
 
 ## 3. Suggested order
 
-1. **Screen + input** (window system, keyboard, mouse) — nothing can be shown without this.
+1. ~~**Screen + input** (window system, keyboard, mouse)~~ — done in its first form; next: USB HID, resizable windows, shared surfaces.
 2. **File system** (VFS + ramdisk, then a disk FS) and **fonts** (FreeType, then HarfBuzz).
 3. **HTML/CSS layer** (Lexbor or NetSurf libs), DOM bindings for QuickJS, image codecs (JPEG, WebP), Brotli, TLS 1.3, HTTP client with redirects/chunked/gzip. => first usable text-and-image browser.
 4. **POSIX layer for engines**: threads + futex + TLS, `mmap`, `poll/epoll`, pipes and Unix sockets, non-blocking sockets, SMP.

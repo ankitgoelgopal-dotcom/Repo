@@ -17,18 +17,23 @@ HTTPS_PID=$!
 trap 'kill $HTTP_PID $HTTPS_PID 2>/dev/null; rm -rf "$WWW"' EXIT
 sleep 1
 
+GUIDIR="$(dirname "$ISO")/gui"; rm -rf "$GUIDIR"; mkdir -p "$GUIDIR"; QSOCK="$GUIDIR/qmp.sock"
 qemu-system-x86_64 \
   -cdrom "$ISO" -m 256M -display none -no-reboot \
   -serial "file:$LOG" \
   -netdev user,id=n0 -device e1000,netdev=n0 \
+  -qmp "unix:$QSOCK,server,nowait" \
   >/dev/null 2>&1 &
 QPID=$!
+python3 "$(dirname "$0")/../tests/gui_driver.py" "$QSOCK" "$LOG" "$GUIDIR" > "$GUIDIR/driver.out" 2>&1 &
+DPID=$!
 # the kernel idles after the last app exits, so stop QEMU as soon as it reports that (or at the timeout)
 for _ in $(seq 1 "$TIMEOUT"); do
   grep -aq "ALL APPS FINISHED" "$LOG" 2>/dev/null && { sleep 2; break; }
   kill -0 "$QPID" 2>/dev/null || break
   sleep 1
 done
+wait "$DPID" 2>/dev/null
 kill "$QPID" 2>/dev/null; wait "$QPID" 2>/dev/null
 rc=0
 
@@ -100,5 +105,10 @@ else echo "FAIL: libpng tests"; grep -a "^PNG" "$LOG" | tr -d '\r' | head; fail=
 # ---- Lexbor: HTML5 parser, CSS parser, selectors, style cascade, URL parser ----
 if grep -aq "HTMLTEST DONE pass=[0-9]* fail=0" "$LOG"; then echo "PASS: Lexbor: $(grep -a 'HTMLTEST DONE' "$LOG" | tr -d '\r' | sed 's/HTMLTEST DONE //') (HTML5 tree repair, selectors L4, CSS cascade, WHATWG URLs, deep-nesting and garbage input)"
 else echo "FAIL: Lexbor tests"; grep -a "^HTML" "$LOG" | tr -d '\r' | head; fail=1; fi
+
+# ---- window system: framebuffer, compositor, PS/2 keyboard + mouse, focus, drag, close (injected through QMP) ----
+cat "$GUIDIR/driver.out"
+if grep -aq "GUITEST DONE fail=0" "$GUIDIR/driver.out"; then echo "PASS: window system: $(grep -ac 'GUITEST PASS' "$GUIDIR/driver.out") GUI checks (keyboard, mouse, wheel, focus, raise, drag, close, pixel-exact screenshots)"
+else echo "FAIL: window system tests"; fail=1; fi
 
 exit $fail

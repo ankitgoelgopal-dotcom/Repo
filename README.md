@@ -51,6 +51,12 @@ rounding, `float` and `double` versions), `fenv.h`, `errno.h`, `ctype.h`, exact 
 Limits: `long double` has only a few helpers (`fabsl`, `copysignl`, `fmodl`, `scalbnl`), AVX is not enabled, FP exceptions
 are masked (division by zero gives inf/NaN, as on most systems), no `complex.h`.
 
+## Window system
+Framebuffer + compositor + window manager + PS/2 keyboard/mouse, with an app API (`os_win_*`, `qar_gfx.h`) and a log window.
+CI injects keyboard and mouse input into QEMU and checks screenshots pixel by pixel (24 checks: typing, focus, raise, drag,
+wheel, close, redraw). See `docs/WINDOW-SYSTEM.md` for the API, how to try it in QEMU/Limbo, and the limits (PS/2 only, 1024x768,
+no resize, no USB/touch).
+
 ## Web libraries (building blocks for a browser; there is no browser yet)
 All are built into the SDK and tested inside the OS by CI (`scripts/test_qemu.sh`):
 | Library | In SDK as | What CI checks on the guest |

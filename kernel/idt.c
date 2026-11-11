@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "cpu.h"
 #include "sched.h"
+#include "ps2.h"
 #include "rtc.h"
 struct gate { uint16_t lo, sel; uint8_t ist, flags; uint16_t mid; uint32_t hi, zero; } __attribute__((packed));
 static struct gate idt[256];
@@ -21,7 +22,7 @@ void idt_init(void) {
 void pic_init(void) {
     outb(0x20, 0x11); outb(0xA0, 0x11); outb(0x21, 32); outb(0xA1, 40);
     outb(0x21, 4); outb(0xA1, 2); outb(0x21, 1); outb(0xA1, 1);
-    outb(0x21, 0xFE); outb(0xA1, 0xFF);                    /* only IRQ0 (timer) unmasked */
+    outb(0x21, 0xF8); outb(0xA1, 0xEF);                    /* unmasked: IRQ0 timer, IRQ1 keyboard, IRQ2 cascade, IRQ12 mouse */
 }
 void pit_init(unsigned hz) {
     unsigned d = 1193182 / hz;
@@ -33,6 +34,9 @@ extern long syscall_dispatch(struct regs *r);
 void isr_handler(struct regs *r) {
     if (r->int_no == 32) {                                 /* timer */
         outb(0x20, 0x20); ticks++; if (!(ticks & 7)) entropy_event(); sched_tick(); return;
+    }
+    if (r->int_no == 33 || r->int_no == 44) {              /* PS/2 keyboard / mouse */
+        ps2_irq(); if (r->int_no >= 40) outb(0xA0, 0x20); outb(0x20, 0x20); return;
     }
     if (r->int_no == 128) { r->rax = (uint64_t)syscall_dispatch(r); return; }
     if (r->int_no >= 32) { outb(0x20, 0x20); return; }     /* spurious / unhandled IRQ */

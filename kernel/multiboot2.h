@@ -20,6 +20,7 @@ struct mb2_fb_tag {
     uint32_t type, size;
     uint64_t addr;
     uint32_t pitch, width, height;
-    uint8_t  bpp, fb_type, reserved;
+    uint8_t  bpp, fb_type; uint16_t reserved;
+    uint8_t  red_pos, red_size, green_pos, green_size, blue_pos, blue_size;   /* valid when fb_type == 1 (RGB) */
 } __attribute__((packed));
 #endif

@@ -18,7 +18,7 @@ jobs:
           # gcc runs in -ffreestanding mode targeting x86_64 (see README: no x86_64-elf-gcc package exists in Ubuntu)
           sudo apt-get install -y --no-install-recommends \
             gcc binutils make nasm xorriso grub-pc-bin grub-common mtools \
-            qemu-system-x86 python3 python3-cryptography
+            qemu-system-x86 python3 python3-cryptography python3-pil
 
       - name: Build kernel and ISO
         run: make iso

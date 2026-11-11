@@ -111,4 +111,10 @@ cat "$GUIDIR/driver.out"
 if grep -aq "GUITEST DONE fail=0" "$GUIDIR/driver.out"; then echo "PASS: window system: $(grep -ac 'GUITEST PASS' "$GUIDIR/driver.out") GUI checks (keyboard, mouse, wheel, focus, raise, drag, close, pixel-exact screenshots)"
 else echo "FAIL: window system tests"; fail=1; fi
 
+# On GitHub Actions, surface failures as annotations (readable without downloading logs)
+if [ "$fail" -ne 0 ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
+  msg="$( { grep -a '^FAIL' /dev/null; echo "--- failing checks (test_qemu.sh) ---"; [ -f "$GUIDIR/driver.out" ] && tail -n 25 "$GUIDIR/driver.out"; echo "--- serial log tail ---"; tr -d '\r' < "$LOG" | tail -n 25; } 2>&1 | head -c 6000 | sed ':a;N;$!ba;s/\n/%0A/g')"
+  echo "::error title=QAR-OS boot test failed::$msg"
+fi
+
 exit $fail
